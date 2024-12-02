@@ -1,0 +1,5 @@
+emcee
+matplotlib
+numpy
+pomegranate
+scipy
