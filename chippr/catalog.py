@@ -114,36 +114,57 @@ class catalog(object):
         # coarse /= np.sum(coarse, axis=1)[:, np.newaxis]  * self.dz_coarse
         return coarse
     
-    def create(self, truth, int_pr, N=d.n_gals, vb=True):
+   def create(self, truth, int_pr, N=d.n_gals, vb=True):
+        """
+        Function creating a catalog of interim posterior probability
+        distributions, will split this up into helper functions
+
+        Parameters
+        ----------
+        truth: chippr.gmix object or chippr.gauss object or chippr.discrete
+        object
+            true redshift distribution object
+        int_pr: chippr.gmix object or chippr.gauss object or chippr.discrete
+        object
+            interim prior distribution object
+        vb: boolean, optional
+            True to print progress messages to stdout, False to suppress
+
+        Returns
+        -------
+        self.cat: dict
+            dictionary comprising catalog information
+        """
         self.N = 10**N
         self.N_range = range(self.N)
         self.truth = truth
 
         self.proc_bins()
 
+        # samps_prep  = np.empty((2, self.N))
+        # samps_prep[0] = self.truth.sample(self.N)
+
         prob_components = self.make_probs()
-        print(f"z_fine shape: {self.z_fine.shape}, bin_difs_fine shape: {self.bin_difs_fine.shape}")
-        evaluated = self.truth.evaluate(self.z_fine)
-        print(f"evaluated shape: {evaluated.shape}")
-              
-        if isinstance(evaluated, torch.Tensor):
-            evaluated = evaluated.numpy()
-        print(f"evaluated shape: {evaluated.shape}")
-        if isinstance(self.bin_difs_fine, torch.Tensor):
-            self.bin_difs_fine = self.bin_difs_fine.numpy()
-        hor_amps = evaluated * self.bin_difs_fine
-        print(f"horamps shape: {hor_amps.shape}")
-        if isinstance(hor_amps, torch.Tensor):
-            hor_amps = hor_amps.numpy()
-        print(f"horamps shape: {hor_amps.shape}")
+        hor_amps = self.truth.evaluate(self.z_fine) * self.bin_difs_fine
+        print("hor_amps shape", hor_amps.shape)
+        print("self.z_fine shape", self.z_fine.shape)
+        
         self.pspace_draw = gmix(hor_amps, prob_components)
         if vb:
             plots.plot_prob_space(self.z_fine, self.pspace_draw, plot_loc=self.plot_dir, prepend=self.cat_name+'draw_')
 
+        # self.prob_space = self.make_probs()
+        # if vb:
+        #     plots.plot_prob_space(self.z_fine, self.prob_space, plot_loc=self.plot_dir, prepend=self.cat_name)
+
+        ## next, sample discrete to get z_true, z_obs
         self.samps = self.pspace_draw.sample(self.N)
         self.cat['true_vals'] = self.samps
         if vb:
             plots.plot_true_histogram(self.samps.T[0], n_bins=(self.n_coarse, self.n_tot), plot_loc=self.plot_dir, prepend=self.cat_name, plot_name="true_histogram")
+
+        ## then literally take slices (evaluate at constant z_phot)
+        #self.obs_lfs /= np.sum(self.obs_lfs, axis=1)[:, np.newaxis] * self.dz_fine
 
         self.int_pr = int_pr
         int_pr_fine = self.int_pr.pdf(self.z_fine)
@@ -153,33 +174,37 @@ class catalog(object):
             plots.plot_prob_space(self.z_fine, self.pspace_eval, plot_loc=self.plot_dir, prepend=self.cat_name+'eval_', plot_name="true_histogram")
 
         self.obs_lfs = self.evaluate_lfs(self.pspace_eval)
-        
-        # Update to coarsify the correct length
+
+        # truth_fine = self.truth.pdf(self.z_fine)
+        #
+        # pfs_fine = self.obs_lfs * int_pr_fine[np.newaxis, :] / truth_fine[np.newaxis, :]
         pfs_coarse = self.coarsify(self.obs_lfs)
         if vb:
             print('before coarsify: '+str(int_pr_fine))
+        #int_pr_coarse = self.coarsify(np.array([int_pr_fine]))[0]
+        # Check if int_pr_fine is a PyTorch tensor
         if isinstance(int_pr_fine, torch.Tensor):
             int_pr_fine = int_pr_fine.numpy()
         int_pr_coarse = self.coarsify(np.array([int_pr_fine]))[0]
+        print("int_pr_fine shape:", int_pr_fine.shape)
         print("int_pr_coarse shape:", int_pr_coarse.shape)
         print("bin_ends shape:", self.bin_ends.shape)
-
-          # Adjust z_fine to match hor_amps length after coarsify
-        z_fine_coarse = np.linspace(self.z_min, self.z_max, len(hor_amps))  # Adjust length to match hor_amps
+        
 
         if vb:
             print('after coarsify: '+str(int_pr_coarse))
-            plots.plot_mega_scatter(self.samps, self.obs_lfs, z_fine_coarse, self.bin_ends, truth=[z_fine_coarse, hor_amps], plot_loc=self.plot_dir, prepend=self.cat_name, plot_name="true_histogram", int_pr=[self.z_fine, int_pr_fine])
 
+        if vb:
+            # plots.plot_scatter(self.samps, self.obs_lfs, self.z_fine, plot_loc=self.plot_dir, prepend=self.cat_name)
+            plots.plot_mega_scatter(self.samps, self.obs_lfs, self.z_fine, self.bin_ends, truth=[self.z_fine, hor_amps], plot_loc=self.plot_dir, prepend=self.cat_name,plot_name="true_histogram", int_pr=[self.z_fine, int_pr_fine])
 
-       
         norm_int_pr_coarse = int_pr_coarse / (np.sum(int_pr_coarse) * self.dz_coarse)
         self.cat['bin_ends'] = self.bin_ends
         self.cat['log_interim_prior'] = u.safe_log(norm_int_pr_coarse)
         self.cat['log_interim_posteriors'] = u.safe_log(pfs_coarse)
-        
-        return self.cat
 
+        return self.cat
+       
     def make_probs(self, vb=True):
         """
         Makes the continuous 2D probability distribution over z_spec, z_phot
