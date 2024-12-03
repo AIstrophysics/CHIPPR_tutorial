@@ -168,26 +168,13 @@ def plot_mega_scatter(zs, pfs, z_grid, grid_ends, truth=None, plot_loc='', prepe
     histx.hist(true_zs, bins=grid_ends, alpha=0.25, color='k', stacked=False, density=True)
     histy.hist(obs_zs, bins=grid_ends, orientation='horizontal', alpha=0.25, color='k', stacked=False, density=True)
     if truth is not None:
-        # Ensure truth[1] is a NumPy array
-        if isinstance(truth[1], torch.Tensor):
-            truth[1] = truth[1].numpy()
-    # addition lines added to ensure the matched lengths
-        n_intervals = len(grid_ends) - 1
-        if len(truth[1]) != n_intervals:
-            print(f"Adjusting truth[1] length from {len(truth[1])} to {n_intervals}")
-        # Truncate or coarsify truth[1] to match grid_ends intervals
-            if len(truth[1]) > n_intervals:
-                truth[1] = truth[1][:n_intervals]
-            elif len(truth[1]) < n_intervals:
-                truth[1] = np.pad(truth[1], (0, n_intervals - len(truth[1])), mode='constant')
-   
-     # Print debug info for x and y
-    print(f"x (truth[0]) shape: {truth[0].shape}, values: {truth[0]}")
-    print(f"y (truth[1]) shape: {truth[1].shape}, values: {truth[1]}")
+        #debug line
+        print(f"x (truth[0]) shape: {truth[0].shape}, values: {truth[0]}")
+        print(f"y (truth[1]) shape: {truth[1].shape}, values: {truth[1]}")
 
-    # Now proceed with the plot
-    histx.step(truth[0], truth[1], c='k', where='mid')
-    pu.plot_step(histy, np.pad(truth[1], (1, 1), 'constant', constant_values=(0, 0)), grid_ends, c='k', w=1.5)
+       # Now proceed with the plot
+        histx.step(truth[0], truth[1], c='k', where='mid')
+        pu.plot_step(histy, np.pad(truth[1], (1, 1), 'constant', constant_values=(0, 0)), grid_ends, c='k', w=1.5)
 
     if int_pr is not None:
         histx.step(int_pr[0], int_pr[1], c='k', alpha=0.5, where='mid')
