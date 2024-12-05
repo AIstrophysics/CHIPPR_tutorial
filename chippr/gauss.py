@@ -29,7 +29,7 @@ class gauss(object):
         self.covariance_matrix = np.diag(self.var)  # Convert to 2D diagonal matrix
 
         # Create the Gaussian distribution
-        self.dist = ND(self.mean, self.covariance_matrix)
+        self.dist = ND(self.mean, self.var,covariance_type='diag')
         
         
         #self.mean = np.atleast_1d(mean)
