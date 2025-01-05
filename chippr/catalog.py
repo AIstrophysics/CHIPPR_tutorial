@@ -76,7 +76,7 @@ class catalog(object):
         self.n_coarse = self.params['n_bins']
         self.z_min = self.params['bin_min']
         self.z_max = self.params['bin_max']
-        self.n_fine = 2#self.n_coarse
+        self.n_fine = 2 #self.n_coarse
         self.n_tot = self.n_coarse * self.n_fine
         z_range = self.z_max - self.z_min
 
@@ -107,14 +107,13 @@ class catalog(object):
         coarse: numpy.ndarray, float
             vector of binned values of function
         """
-        # fine /= np.sum(fine, axis=0)[np.newaxis, :] * self.dz_fine
         coarse = fine.T
         coarse = np.array([np.sum(coarse[k * self.n_fine : (k+1) * self.n_fine], axis=0) for k in range(self.n_coarse)])
+        #coarse /= np.sum(coarse, axis=0)[np.newaxis, :]  * self.dz_coarse
         coarse = coarse.T
-        # coarse /= np.sum(coarse, axis=1)[:, np.newaxis]  * self.dz_coarse
         return coarse
     
-   def create(self, truth, int_pr, N=d.n_gals, vb=True):
+    def create(self, truth, int_pr, N=d.n_gals, vb=True):
         """
         Function creating a catalog of interim posterior probability
         distributions, will split this up into helper functions
@@ -169,8 +168,10 @@ class catalog(object):
         self.int_pr = int_pr
         int_pr_fine = self.int_pr.pdf(self.z_fine)
         int_pr_fine = int_pr_fine / np.dot(int_pr_fine, self.bin_difs_fine)
-        self.pspace_eval = gmix(int_pr_fine, prob_components)
+        print("int_pr_fine values:",int_pr_fine)
+        self.pspace_eval = gmix(amps=int_pr_fine, funcs=prob_components)
         if vb:
+            print(len(self.z_fine))
             plots.plot_prob_space(self.z_fine, self.pspace_eval, plot_loc=self.plot_dir, prepend=self.cat_name+'eval_', plot_name="true_histogram")
 
         self.obs_lfs = self.evaluate_lfs(self.pspace_eval)
@@ -200,11 +201,11 @@ class catalog(object):
 
         norm_int_pr_coarse = int_pr_coarse / (np.sum(int_pr_coarse) * self.dz_coarse)
         self.cat['bin_ends'] = self.bin_ends
-        self.cat['log_interim_prior'] = u.safe_log(norm_int_pr_coarse)
+        self.cat['log_interim_prior'] = u.safe_log(int_pr_coarse)
         self.cat['log_interim_posteriors'] = u.safe_log(pfs_coarse)
 
         return self.cat
-       
+
     def make_probs(self, vb=True):
         """
         Makes the continuous 2D probability distribution over z_spec, z_phot
@@ -448,8 +449,8 @@ class catalog(object):
                 cur = cur.numpy()
             lfs.append(cur)
         #print("lfs contents:", lfs)
-        lfs = np.array(lfs)
         #lfs /= np.sum(lfs, axis=-1)[:, np.newaxis] * self.dz_fine
+        lfs = np.array(lfs)
         return lfs
 
     def write(self, loc='data', style='.txt'):
