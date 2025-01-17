@@ -77,6 +77,11 @@ class log_z_dens(object):
                 self.fine_zs.extend(fine_z)
                 fine_dz = (self.bin_ends[b+1] - self.bin_ends[b]) / self.n_bins
                 fine_n = self.truth.evaluate(fine_z)
+                
+                # Ensure `fine_n` is a NumPy array
+                if not isinstance(fine_n, np.ndarray):
+                    fine_n = np.array(fine_n)
+                    
                 self.fine_nz.extend(fine_n)
                 coarse_nz = np.sum(fine_n) * fine_dz
                 self.tru_nz[b] += coarse_nz
@@ -488,11 +493,13 @@ class log_z_dens(object):
                 # self.info['stats']['log_kld'][key] = s.calculate_kld(self.log_tru_nz, self.info['estimators'][key])
                 self.info['stats']['rms']['true_nz' + '__' + key[4:]] = s.calculate_rms(np.exp(self.info['log_tru_nz']), np.exp(self.info['estimators'][key]))
                 self.info['stats']['log_rms']['log_true_nz'+ '__' + key] = s.calculate_rms(self.info['log_tru_nz'], self.info['estimators'][key])
-
+        
+        #edited below for listing index:
         for i in range(len(self.info['estimators'].keys())):
-            key_1 = self.info['estimators'].keys()[i]
-            for j in range(len(self.info['estimators'].keys()[:i])):
-                key_2 = self.info['estimators'].keys()[j]
+            keys = list(self.info['estimators'].keys())
+            key_1 = keys[i]
+            for j in range(len(keys[:i])):
+                key_2 = keys[j]
                 # print(((i,j), (key_1, key_2)))
                 self.info['stats']['log_rms'][key_1 + '__' + key_2] = s.calculate_rms(self.info['estimators'][key_1], self.info['estimators'][key_2])
                 self.info['stats']['rms'][key_1[4:] + '__' + key_2[4:]] = s.calculate_rms(np.exp(self.info['estimators'][key_1]), np.exp(self.info['estimators'][key_2]))
@@ -515,6 +522,8 @@ class log_z_dens(object):
         else:
             plots.plot_estimators(self.info, self.plot_dir, log=False, prepend=self.add_text+also+'lin_', mini=mini)
         return
+    
+
 
     def read(self, read_loc, style='pickle', vb=True):
         """
@@ -564,3 +573,4 @@ class log_z_dens(object):
             for key in self.info:
                 print(key)
         return
+        
